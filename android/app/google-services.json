@@ -1,0 +1,220 @@
+{
+  "project_info": {
+    "project_number": "165605340230",
+    "firebase_url": "https://neww-3tncqs-default-rtdb.firebaseio.com",
+    "project_id": "neww-3tncqs",
+    "storage_bucket": "neww-3tncqs.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:165605340230:android:08db30e645a345fa86c647",
+        "android_client_info": {
+          "package_name": "com.digitalboda.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "165605340230-b9ra0452i2nk3etbhv8c0rp8vq21k50m.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.digitalboda.app",
+            "certificate_hash": "f7faa1f8912f0ca917182375dcb59ec41140d3f9"
+          }
+        },
+        {
+          "client_id": "165605340230-emsrfm04co7s3kqqhdj1h2i1jqc5qokq.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.digitalboda.app",
+            "certificate_hash": "a8a134d0b84d94775be6119fe969a0fcd28b4acb"
+          }
+        },
+        {
+          "client_id": "165605340230-qd6t9r6c8v8m5svku0og6tonu7oii6tj.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.digitalboda.app",
+            "certificate_hash": "4c944135e51464e3bf7bef328b54485dc0106187"
+          }
+        },
+        {
+          "client_id": "165605340230-s4t4ndplm19lqtqb9cs40hi1ek7pnbb5.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.digitalboda.app",
+            "certificate_hash": "b02a71c36a92bf580af9815f535ed39a7ffd1d73"
+          }
+        },
+        {
+          "client_id": "165605340230-3bvm248mk3bhlcf3ribccgdg69rmdkbs.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCaGFPZFCYmLyYopbUcJzTyz7seLwkpdzI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "165605340230-3bvm248mk3bhlcf3ribccgdg69rmdkbs.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:165605340230:android:78006893cd76bc5a86c647",
+        "android_client_info": {
+          "package_name": "com.digitalbodaUg.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "165605340230-4beuleocvbuumed09ba5q55rv8l72taq.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.digitalbodaUg.app",
+            "certificate_hash": "a8a134d0b84d94775be6119fe969a0fcd28b4acb"
+          }
+        },
+        {
+          "client_id": "165605340230-lte18usp06skbrb7e8iurm7jj12fgbmr.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.digitalbodaUg.app",
+            "certificate_hash": "f7faa1f8912f0ca917182375dcb59ec41140d3f9"
+          }
+        },
+        {
+          "client_id": "165605340230-3bvm248mk3bhlcf3ribccgdg69rmdkbs.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCaGFPZFCYmLyYopbUcJzTyz7seLwkpdzI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "165605340230-3bvm248mk3bhlcf3ribccgdg69rmdkbs.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:165605340230:android:a289b40661f1435a86c647",
+        "android_client_info": {
+          "package_name": "com.example.bbeta"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "165605340230-3bvm248mk3bhlcf3ribccgdg69rmdkbs.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCaGFPZFCYmLyYopbUcJzTyz7seLwkpdzI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "165605340230-3bvm248mk3bhlcf3ribccgdg69rmdkbs.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:165605340230:android:6f25e14f6f8634ed86c647",
+        "android_client_info": {
+          "package_name": "com.example.digitalboda_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "165605340230-60n0gloeul8m0tuqku9mqi4tps0usv40.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.digitalboda_app",
+            "certificate_hash": "4c944135e51464e3bf7bef328b54485dc0106187"
+          }
+        },
+        {
+          "client_id": "165605340230-97ut9c30r6s83kb81nvpg78rcvsnglf3.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.digitalboda_app",
+            "certificate_hash": "b02a71c36a92bf580af9815f535ed39a7ffd1d73"
+          }
+        },
+        {
+          "client_id": "165605340230-3bvm248mk3bhlcf3ribccgdg69rmdkbs.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCaGFPZFCYmLyYopbUcJzTyz7seLwkpdzI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "165605340230-3bvm248mk3bhlcf3ribccgdg69rmdkbs.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:165605340230:android:f65a3bb07559067386c647",
+        "android_client_info": {
+          "package_name": "com.example.jog"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "165605340230-3bvm248mk3bhlcf3ribccgdg69rmdkbs.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCaGFPZFCYmLyYopbUcJzTyz7seLwkpdzI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "165605340230-3bvm248mk3bhlcf3ribccgdg69rmdkbs.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
