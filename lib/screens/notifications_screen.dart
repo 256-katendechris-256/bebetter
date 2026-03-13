@@ -87,6 +87,24 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     } catch (_) {}
   }
 
+  Future<void> _deleteNotification(int id) async {
+    try {
+      await _api.deleteNotification(id);
+      if (mounted) setState(() => _notifications.removeWhere((n) => n['id'] == id));
+    } catch (_) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to delete notification')),
+      );
+    }
+  }
+
+  Future<void> _deleteAll() async {
+    try {
+      await _api.deleteAllNotifications();
+      if (mounted) setState(() => _notifications.clear());
+    } catch (_) {}
+  }
+
   // Group notifications by date label
   Map<String, List<Map<String, dynamic>>> get _grouped {
     final now   = DateTime.now();
@@ -146,14 +164,29 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                           color       : Colors.white,
                           letterSpacing: -0.3)),
                 ),
-                if (_hasUnread)
-                  GestureDetector(
-                    onTap: _markAllRead,
-                    child: Text('Mark all read',
-                        style: TextStyle(
-                            fontSize  : 13,
-                            fontWeight: FontWeight.w600,
-                            color     : kEmerald.withOpacity(0.9))),
+                if (_hasUnread || _notifications.isNotEmpty)
+                  Row(
+                    children: [
+                      if (_hasUnread)
+                        GestureDetector(
+                          onTap: _markAllRead,
+                          child: Text('Mark all read',
+                              style: TextStyle(
+                                  fontSize  : 13,
+                                  fontWeight: FontWeight.w600,
+                                  color     : kEmerald.withOpacity(0.9))),
+                        ),
+                      if (_hasUnread) const SizedBox(width: 12),
+                      if (_notifications.isNotEmpty)
+                        GestureDetector(
+                          onTap: _deleteAll,
+                          child: const Text('Clear all',
+                              style: TextStyle(
+                                  fontSize  : 13,
+                                  fontWeight: FontWeight.w600,
+                                  color     : kRed)),
+                        ),
+                    ],
                   ),
               ],
             ),
@@ -200,8 +233,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               final index = _notifications.indexWhere(
                       (x) => x['id'] == n['id']);
               return _NotifTile(
-                notif  : n,
-                onTap  : () => _markRead(n['id'], index),
+                notif   : n,
+                onTap   : () => _markRead(n['id'], index),
+                onDelete: () => _deleteNotification(n['id']),
               );
             }),
           ],
@@ -233,9 +267,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
 class _NotifTile extends StatelessWidget {
   final Map<String, dynamic> notif;
-  final VoidCallback onTap;
+  final VoidCallback          onTap;
+  final VoidCallback          onDelete;
 
-  const _NotifTile({required this.notif, required this.onTap});
+  const _NotifTile({
+    required this.notif,
+    required this.onTap,
+    required this.onDelete,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -244,68 +283,94 @@ class _NotifTile extends StatelessWidget {
     final sentAt   = DateTime.tryParse(notif['sent_at'] ?? '');
     final timeAgo  = sentAt != null ? _timeAgo(sentAt) : '';
 
-    return GestureDetector(
-      onTap: isUnread ? onTap : null,
-      child: Container(
+    return Dismissible(
+      key        : Key('notif_${notif['id']}'),
+      direction  : DismissDirection.endToStart,
+      onDismissed: (_) => onDelete(),
+      background : Container(
         margin    : const EdgeInsets.only(bottom: 10),
         decoration: BoxDecoration(
-          color      : isUnread ? kEmeraldSoft : kSurface,
+          color       : kRed,
           borderRadius: BorderRadius.circular(14),
-          border     : isUnread
-              ? Border(left: BorderSide(color: kEmerald, width: 3))
-              : null,
-          boxShadow  : const [
-            BoxShadow(color: Color(0x08000000), blurRadius: 8, offset: Offset(0, 2)),
+        ),
+        alignment: Alignment.centerRight,
+        padding  : const EdgeInsets.only(right: 20),
+        child    : const Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.delete_outline_rounded, color: Colors.white, size: 22),
+            SizedBox(height: 3),
+            Text('Delete',
+                style: TextStyle(
+                    color     : Colors.white,
+                    fontSize  : 11,
+                    fontWeight: FontWeight.w600)),
           ],
         ),
-        padding: const EdgeInsets.all(14),
-        child  : Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Icon
-            Container(
-              width : 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color       : (meta['color'] as Color).withOpacity(0.12),
-                borderRadius: BorderRadius.circular(12),
+      ),
+      child: GestureDetector(
+        onTap: isUnread ? onTap : null,
+        child: Container(
+          margin    : const EdgeInsets.only(bottom: 10),
+          decoration: BoxDecoration(
+            color       : isUnread ? kEmeraldSoft : kSurface,
+            borderRadius: BorderRadius.circular(14),
+            border      : isUnread
+                ? const Border(left: BorderSide(color: kEmerald, width: 3))
+                : null,
+            boxShadow   : const [
+              BoxShadow(color: Color(0x08000000), blurRadius: 8, offset: Offset(0, 2)),
+            ],
+          ),
+          padding: const EdgeInsets.all(14),
+          child  : Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Icon
+              Container(
+                width : 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color       : (meta['color'] as Color).withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                alignment: Alignment.center,
+                child: Icon(meta['icon'] as IconData,
+                    color: meta['color'] as Color, size: 20),
               ),
-              alignment: Alignment.center,
-              child: Icon(meta['icon'] as IconData,
-                  color: meta['color'] as Color, size: 20),
-            ),
-            const SizedBox(width: 12),
-            // Text
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(notif['title'] ?? '',
-                            style: TextStyle(
-                                fontSize  : 14,
-                                fontWeight: isUnread
-                                    ? FontWeight.w700
-                                    : FontWeight.w500,
-                                color     : kTextPrimary)),
-                      ),
-                      Text(timeAgo,
-                          style: const TextStyle(
-                              fontSize: 11, color: kTextMuted)),
-                    ],
-                  ),
-                  const SizedBox(height: 3),
-                  Text(notif['body'] ?? '',
-                      style: const TextStyle(
-                          fontSize: 13, color: kTextSecondary),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis),
-                ],
+              const SizedBox(width: 12),
+              // Text
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(notif['title'] ?? '',
+                              style: TextStyle(
+                                  fontSize  : 14,
+                                  fontWeight: isUnread
+                                      ? FontWeight.w700
+                                      : FontWeight.w500,
+                                  color     : kTextPrimary)),
+                        ),
+                        Text(timeAgo,
+                            style: const TextStyle(
+                                fontSize: 11, color: kTextMuted)),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Text(notif['body'] ?? '',
+                        style: const TextStyle(
+                            fontSize: 13, color: kTextSecondary),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -313,8 +378,8 @@ class _NotifTile extends StatelessWidget {
 
   String _timeAgo(DateTime dt) {
     final diff = DateTime.now().difference(dt);
-    if (diff.inMinutes < 60)  return '${diff.inMinutes}m ago';
-    if (diff.inHours   < 24)  return '${diff.inHours}h ago';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours   < 24) return '${diff.inHours}h ago';
     return '${diff.inDays}d ago';
   }
 }

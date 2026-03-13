@@ -3,14 +3,24 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/material.dart';
 import 'api_service.dart';
 
-// Global navigator key — set this in main.dart on MaterialApp
-final GlobalKey<NavigatorState> notificationNavigatorKey = GlobalKey<NavigatorState>();
+// ─── Must match AndroidManifest meta-data value ───────────────────────────────
+const _kChannelId   = 'bud_bookclub_channel';
+const _kChannelName = 'BookClub Notifications';
+const _kChannelDesc = 'Streak alerts, league updates, reading reminders';
 
 // ─── Background handler — must be top-level ──────────────────────────────────
+// DO NOT call show() here — FCM auto-displays the notification when app is
+// background/closed because our messages include a `notification` key.
+// Calling show() here causes duplicates (FCM shows 1 + we show another).
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  debugPrint('Background message: ${message.messageId}');
+  debugPrint('📩 Background FCM: ${message.notification?.title}');
+  // FCM handles display automatically — nothing to do here.
 }
+
+// ═════════════════════════════════════════════════════════════════════════════
+// NOTIFICATION SERVICE
+// ═════════════════════════════════════════════════════════════════════════════
 
 class NotificationService {
   NotificationService._();
@@ -19,129 +29,141 @@ class NotificationService {
   final _messaging   = FirebaseMessaging.instance;
   final _localNotifs = FlutterLocalNotificationsPlugin();
 
+  // Callback set from main.dart to navigate to inbox on tap
+  VoidCallback? onNotificationTap;
+
   static const _channel = AndroidNotificationChannel(
-    'bookclub_high',
-    'BookClub Notifications',
-    description: 'Streak alerts, league updates, reading reminders',
-    importance : Importance.high,
+    _kChannelId,
+    _kChannelName,
+    description    : _kChannelDesc,
+    importance     : Importance.max,
+    playSound      : true,
+    enableVibration: true,
   );
 
   Future<void> init() async {
-    // 1. Background handler
+    // 1. Register background handler FIRST
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
     // 2. Request permission
     final settings = await _messaging.requestPermission(
-      alert    : true,
-      badge    : true,
-      sound    : true,
+      alert      : true,
+      badge      : true,
+      sound      : true,
       provisional: false,
     );
     debugPrint('FCM permission: ${settings.authorizationStatus}');
 
-    // 3. Create Android notification channel — generic on same line, no semicolon break
-    await _localNotifs
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(_channel);
-
-    // 4. Init local notifications
-    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
-    await _localNotifs.initialize(
-      const InitializationSettings(android: androidSettings),
-      onDidReceiveNotificationResponse: _onNotificationTap,
+    // 3. iOS foreground presentation
+    await _messaging.setForegroundNotificationPresentationOptions(
+      alert: true,
+      badge: true,
+      sound: true,
     );
 
-    // 5. Register FCM token with Django
+    // 4. Create Android channel — id must match _kChannelId + manifest
+    await _localNotifs
+        .resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(_channel);
+
+    // 5. Init local notifications (foreground only)
+    await _localNotifs.initialize(
+      const InitializationSettings(
+        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+      ),
+      onDidReceiveNotificationResponse: _onLocalNotifTap,
+    );
+
+    // 6. Register FCM token
     await _registerToken();
 
-    // 6. Token refresh
+    // 7. Refresh token listener
     _messaging.onTokenRefresh.listen(_sendTokenToBackend);
 
-    // 7. Foreground messages
+    // 8. FOREGROUND messages — must show manually (FCM doesn't auto-display
+    //    when app is open on Android)
     FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
 
-    // 8. App opened from notification
+    // 9. App opened from background notification tap
     FirebaseMessaging.onMessageOpenedApp.listen(_handleNotificationTap);
 
-    // 9. Cold start from notification
+    // 10. Cold start — app was fully closed when notification was tapped
     final initial = await _messaging.getInitialMessage();
     if (initial != null) _handleNotificationTap(initial);
   }
 
+  // ── Token registration ─────────────────────────────────────────────────────
+
   Future<void> _registerToken() async {
     try {
       final token = await _messaging.getToken();
-      if (token != null) await _sendTokenToBackend(token);
+      if (token != null) {
+        debugPrint('FCM Token: $token');
+        await _sendTokenToBackend(token);
+      }
     } catch (e) {
-      debugPrint('FCM token registration failed: $e');
+      debugPrint('❌ FCM token registration failed: $e');
     }
   }
 
   Future<void> _sendTokenToBackend(String token) async {
     try {
-      final api = ApiService();
-      await api.registerFCMToken(token);
-      debugPrint('FCM token registered with backend');
+      await ApiService().registerFCMToken(token);
+      debugPrint('✅ FCM token sent to backend');
     } catch (e) {
-      debugPrint('Failed to send token to backend: $e');
+      debugPrint('❌ Failed to send FCM token: $e');
     }
   }
 
+  // ── Foreground handler ─────────────────────────────────────────────────────
+  // Only called when app is OPEN. Background/closed is handled by FCM itself.
+
   void _handleForegroundMessage(RemoteMessage message) {
-    final notification = message.notification;
-    if (notification == null) return;
+    debugPrint('📩 Foreground: ${message.notification?.title}');
+    final n = message.notification;
+    if (n == null) return;
 
     _localNotifs.show(
-      notification.hashCode,
-      notification.title,
-      notification.body,
-      NotificationDetails(
+      message.hashCode,
+      n.title,
+      n.body,
+      const NotificationDetails(
         android: AndroidNotificationDetails(
-          _channel.id,
-          _channel.name,
-          channelDescription: _channel.description,
-          importance: Importance.high,
-          priority  : Priority.high,
-          icon      : '@mipmap/ic_launcher',
+          _kChannelId,
+          _kChannelName,
+          channelDescription: _kChannelDesc,
+          importance        : Importance.max,
+          priority          : Priority.high,
+          icon              : '@mipmap/ic_launcher',
+          playSound         : true,
+          enableVibration   : true,
         ),
       ),
       payload: message.data['type'],
     );
   }
 
+  // ── Tap handlers ───────────────────────────────────────────────────────────
+
   void _handleNotificationTap(RemoteMessage message) {
-    debugPrint('Notification tapped — type: ${message.data['type']}');
+    debugPrint('🔔 Tapped: ${message.data}');
     _navigateToInbox();
   }
 
-  void _onNotificationTap(NotificationResponse response) {
-    debugPrint('Local notification tapped — payload: ${response.payload}');
+  void _onLocalNotifTap(NotificationResponse response) {
+    debugPrint('🔔 Local tapped: ${response.payload}');
     _navigateToInbox();
   }
 
-  void _navigateToInbox() {
-    if (onNotificationTap != null) {
-      onNotificationTap!();
-    }
-  }
+  void _navigateToInbox() => onNotificationTap?.call();
 
-  // Set this callback from main.dart / Dashboard to handle navigation
-  VoidCallback? onNotificationTap;
-
-  String? _pendingRoute;
-  String? consumePendingRoute() {
-    final route  = _pendingRoute;
-    _pendingRoute = null;
-    return route;
-  }
+  // ── Unregister on logout ───────────────────────────────────────────────────
 
   Future<void> unregisterToken() async {
     try {
       final token = await _messaging.getToken();
-      if (token != null) {
-        final api = ApiService();
-        await api.unregisterFCMToken(token);
-      }
+      if (token != null) await ApiService().unregisterFCMToken(token);
       await _messaging.deleteToken();
     } catch (e) {
       debugPrint('FCM unregister failed: $e');

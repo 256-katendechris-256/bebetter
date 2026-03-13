@@ -248,4 +248,12 @@ class ApiService {
     data['timezone'] = 'Etc/GMT${offset.inHours == 0 ? '' : (offset.isNegative ? '+' : '-')}${offset.inHours.abs()}';
     return await dio.patch('/notifications/preferences/', data: data);
   }
+
+  Future<Response> deleteNotification(int id) async {
+    return await dio.delete('/notifications/$id/delete/');
+  }
+
+  Future<Response> deleteAllNotifications() async {
+    return await dio.delete('/notifications/delete-all/');
+  }
 }

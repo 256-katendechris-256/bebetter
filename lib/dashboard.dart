@@ -766,7 +766,7 @@ class _QuickIcons extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const items = [
-      _QI(emoji: '🎯', label: 'Quest',  dot: true),   // target — purposeful, no sword
+      _QI(emoji: '🎯', label: 'Quest',  dot: false),   // target — purposeful, no sword
       _QI(emoji: '📚', label: 'Booklist',  dot: false),
       _QI(emoji: '🛒', label: 'BookStore',  dot: false),
     ];
