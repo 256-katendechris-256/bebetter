@@ -1,4 +1,5 @@
 import 'package:bbeta/Auth/auth_service.dart';
+import 'package:bbeta/screens/bookstore_home_screen.dart';
 import 'package:bbeta/services/api_service.dart';
 import 'package:bbeta/splash_screen.dart';
 import 'package:bbeta/screens/book_reader_screen.dart';
@@ -7,6 +8,7 @@ import 'package:bbeta/screens/notification_preferences_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:dio/dio.dart';
+import '../widgets/quote_carousel.dart';
 
 // ─── Design Tokens ────────────────────────────────────────────────────────────
 const Color kInk         = Color(0xFF0D1B2A); // top bar + nav bar
@@ -70,6 +72,8 @@ class _DashboardState extends State<Dashboard> {
   List<dynamic> _currentlyReading = [];
   List<dynamic> _books             = [];
   List<dynamic> _filteredBooks     = [];
+  List<Map<String, dynamic>>  _myList =[];
+  List<Map<String, dynamic>>  _readBooks =[];
   String _searchQuery = '';
   bool _loadingHome    = true;
   bool _loadingLibrary = true;
@@ -157,10 +161,17 @@ class _DashboardState extends State<Dashboard> {
     });
   }
 
-  void _toggleBookmark(int id) => setState(() =>
-  _bookmarkedBooks.contains(id)
-      ? _bookmarkedBooks.remove(id)
-      : _bookmarkedBooks.add(id));
+  void _toggleBookmark(Map<String, dynamic> book) {
+    setState(() {
+      final exists = _myList.any((b) => b['id'] == book['id']);
+
+      if (exists) {
+        _myList.removeWhere((b) => b['id'] == book['id']);
+      } else {
+        _myList.add(book);
+      }
+    });
+  }
 
   Future<void> _handleLogout() async {
     await _authService.logout();
@@ -230,9 +241,16 @@ class _DashboardState extends State<Dashboard> {
         child  : Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const _QuoteCarousel(),
+            const QuoteCarousel(),
             const SizedBox(height: 24),
-            const _QuickIcons(),
+            //const _QuickIcons(),
+            _QuickIconsRow(
+              onBookstoreTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => const BookstoreHomeScreen()),
+              ).then((_) => setState(() {})),
+            ),
             const SizedBox(height: 28),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -407,8 +425,8 @@ class _DashboardState extends State<Dashboard> {
                     final book = _filteredBooks[i];
                     return _LibraryBookCard(
                       book         : book,
-                      isBookmarked : _bookmarkedBooks.contains(book['id']),
-                      onBookmarkTap: () => _toggleBookmark(book['id']),
+                      isBookmarked : _myList.any((b) => b['id'] == book['id']),
+                      onBookmarkTap: () => _toggleBookmark(book),
                     );
                   },
                   childCount: _filteredBooks.length,
@@ -450,6 +468,34 @@ class _DashboardState extends State<Dashboard> {
       sub  : 'Real-time club discussions are on the way.',
     ),
   );
+
+  void _markAsRead(Map<String, dynamic> book) {
+    setState(() {
+      _readBooks.add(book);
+      _myList.removeWhere((b)=> b['id'] == book['id']);
+    });
+  }
+}
+
+class _QuickIconsRow extends StatelessWidget {
+  final VoidCallback onBookstoreTap;
+  const _QuickIconsRow({required this.onBookstoreTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Row(
+        children: [
+          Expanded(child: _QITile(item: const _QI(emoji: '🎯', label: 'Quest',     dot: false), onTap: () {})),
+          const SizedBox(width: 8),
+          Expanded(child: _QITile(item: const _QI(emoji: '📚', label: 'My list',  dot: false), onTap: () {})),
+          const SizedBox(width: 8),
+          Expanded(child: _QITile(item: const _QI(emoji: '🛒', label: 'BookStore', dot: false), onTap: onBookstoreTap)),
+        ],
+      ),
+    );
+  }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -792,57 +838,59 @@ class _QI {
 
 class _QITile extends StatelessWidget {
   final _QI item;
-  const _QITile({required this.item});
+  final VoidCallback? onTap;   // ← add this
+  const _QITile({required this.item, this.onTap});
 
   @override
-  Widget build(BuildContext context) => Stack(
-    clipBehavior: Clip.none,
-    children    : [
-      Container(
-        padding  : const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-        decoration: BoxDecoration(
-          color      : kSurface,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow  : const [
-            BoxShadow(color: Color(0x0D000000), blurRadius: 10, offset: Offset(0, 3)),
-            BoxShadow(color: Color(0x06000000), blurRadius: 3,  offset: Offset(0, 1)),
-          ],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(item.emoji, style: const TextStyle(fontSize: 18)),
-            const SizedBox(width: 5),
-            Flexible(
-              child: Text(item.label,
-                  style: const TextStyle(
-                      fontSize  : 12,
-                      fontWeight: FontWeight.w600,
-                      color     : kTextPrimary),
-                  overflow: TextOverflow.ellipsis),
-            ),
-          ],
-        ),
-      ),
-      // dark-green dot — shows there's something active/pending
-      if (item.dot)
-        Positioned(
-          top  : -5,
-          right: 0,
-          child: Container(
-            width : 9,
-            height: 9,
-            decoration: BoxDecoration(
-              color : kEmerald,           // dark green, not alarming red
-              shape : BoxShape.circle,
-              border: Border.all(color: kBg, width: 1.5),
-            ),
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,   // ← wire it here
+    child: Stack(
+      clipBehavior: Clip.none,
+      children    : [
+        Container(
+          padding  : const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+          decoration: BoxDecoration(
+            color      : kSurface,
+            borderRadius: BorderRadius.circular(14),
+            boxShadow  : const [
+              BoxShadow(color: Color(0x0D000000), blurRadius: 10, offset: Offset(0, 3)),
+              BoxShadow(color: Color(0x06000000), blurRadius: 3,  offset: Offset(0, 1)),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(item.emoji, style: const TextStyle(fontSize: 18)),
+              const SizedBox(width: 5),
+              Flexible(
+                child: Text(item.label,
+                    style: const TextStyle(
+                        fontSize  : 12,
+                        fontWeight: FontWeight.w600,
+                        color     : kTextPrimary),
+                    overflow: TextOverflow.ellipsis),
+              ),
+            ],
           ),
         ),
-    ],
+        if (item.dot)
+          Positioned(
+            top  : -5,
+            right: 0,
+            child: Container(
+              width : 9,
+              height: 9,
+              decoration: BoxDecoration(
+                color : kEmerald,
+                shape : BoxShape.circle,
+                border: Border.all(color: kBg, width: 1.5),
+              ),
+            ),
+          ),
+      ],
+    ),
   );
 }
-
 // ═════════════════════════════════════════════════════════════════════════════
 // STATS HERO  (League tab)
 // ═════════════════════════════════════════════════════════════════════════════
@@ -1513,15 +1561,26 @@ class _LibraryBookCard extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.only(left: 8),
                 child  : Icon(
-                  isBookmarked ? Icons.bookmark_rounded : Icons.bookmark_outline_rounded,
+                  isBookmarked
+                      ? Icons.bookmark_rounded
+                      : Icons.bookmark_outline_rounded,
                   color: isBookmarked ? kEmerald : kTextMuted,
                   size : 20,
                 ),
               ),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 10),
             Icon(Icons.chevron_right_rounded,
                 color: hasPDF ? kEmerald : kTextMuted, size: 20),
+            GestureDetector(
+              onTap: (){
+                if (!isBookmarked) return;
+                (context.findAncestorStateOfType<_DashboardState>())
+                ?._markAsRead(book);
+              },
+              child: const Icon(Icons.check_circle_outline, color: kEmerald),
+            )
+
           ],
         ),
       ),
@@ -1564,4 +1623,80 @@ class _EmptyState extends StatelessWidget {
       ),
     ),
   );
+
+}
+class MyListScreen extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final state = context.findAncestorStateOfType<_DashboardState>();
+
+    final myList = state?._myList ?? [];
+    final readBooks = state?._readBooks ?? [];
+    final currentlyReading = state?._currentlyReading ?? [];
+
+    return Scaffold(
+      backgroundColor: kBg,
+      appBar: AppBar(
+        backgroundColor: kInk,
+        title: const Text('My List'),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+
+            // 📌 Saved
+            const Text('Saved for Later',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+            if (myList.isEmpty)
+              const _EmptyState(
+                icon: Icons.bookmark_outline,
+                title: 'No saved books',
+                sub: 'Save books to read later.',
+              )
+            else
+              ...myList.map((b) => _LibraryBookCard(
+                book: b,
+                isBookmarked: true,
+                onBookmarkTap: () => state?._toggleBookmark(b),
+              )),
+
+            const SizedBox(height: 20),
+
+            // 📖 Currently Reading
+            const Text('Currently Reading',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+            if (currentlyReading.isEmpty)
+              const _EmptyState(
+                icon: Icons.menu_book,
+                title: 'No books in progress',
+                sub: '',
+              ),
+
+            const SizedBox(height: 20),
+
+            // ✅ Read
+            const Text('Finished',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+            if (readBooks.isEmpty)
+              const _EmptyState(
+                icon: Icons.check_circle_outline,
+                title: 'No books finished',
+                sub: '',
+              )
+            else
+              ...readBooks.map((b) => _LibraryBookCard(
+                book: b,
+                isBookmarked: false,
+                onBookmarkTap: () {},
+              )),
+          ],
+        ),
+      ),
+    );
+  }
 }
