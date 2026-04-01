@@ -1,19 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../config/theme.dart';
 import '../services/download_service.dart';
 import '../services/api_service.dart';
 import 'book_reader_screen.dart';
-
-// ─── Colour tokens ────────────────────────────────────────────────────────────
-const Color kInk          = Color(0xFF0D1B2A);
-const Color kEmerald      = Color(0xFF059669);
-const Color kEmeraldSoft  = Color(0xFFECFDF5);
-const Color kSurface      = Color(0xFFFFFFFF);
-const Color kBg           = Color(0xFFF4F6F8);
-const Color kRed          = Color(0xFFEF4444);
-const Color kTextPrimary  = Color(0xFF111827);
-const Color kTextSecondary= Color(0xFF6B7280);
-const Color kTextMuted    = Color(0xFF9CA3AF);
 
 // ═════════════════════════════════════════════════════════════════════════════
 // DOWNLOADS SCREEN
@@ -88,12 +78,12 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: const Text('Cancel',
-                style: TextStyle(color: kTextSecondary)),
+                style: TextStyle(color: AppColors.textSecondary)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             child: const Text('Delete',
-                style: TextStyle(color: kRed, fontWeight: FontWeight.w700)),
+                style: TextStyle(color: AppColors.red, fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -108,17 +98,17 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
   @override
   Widget build(BuildContext context) {
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-      statusBarColor         : kInk,
+      statusBarColor         : AppColors.ink,
       statusBarIconBrightness: Brightness.light,
     ));
 
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: AppColors.background,
       body: Column(
         children: [
           // ── Header ──────────────────────────────────────────────
           Container(
-            color  : kInk,
+            color  : AppColors.ink,
             padding: EdgeInsets.only(
               top   : MediaQuery.of(context).padding.top + 12,
               left  : 8,
@@ -162,11 +152,11 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
           Expanded(
             child: _loading
                 ? const Center(
-                child: CircularProgressIndicator(color: kEmerald))
+                child: CircularProgressIndicator(color: AppColors.emerald))
                 : _downloadedBooks.isEmpty
                 ? _buildEmpty()
                 : RefreshIndicator(
-              color    : kEmerald,
+              color    : AppColors.emerald,
               onRefresh: _load,
               child    : ListView.builder(
                 padding    : const EdgeInsets.fromLTRB(16, 16, 16, 24),
@@ -205,10 +195,10 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
             style: TextStyle(
                 fontSize  : 17,
                 fontWeight: FontWeight.w700,
-                color     : kTextSecondary)),
+                color     : AppColors.textSecondary)),
         const SizedBox(height: 6),
         const Text('Download books to read offline.',
-            style: TextStyle(fontSize: 13, color: kTextMuted)),
+            style: TextStyle(fontSize: 13, color: AppColors.textMuted)),
       ],
     ),
   );
@@ -238,7 +228,7 @@ class _DownloadedBookCard extends StatelessWidget {
       margin    : const EdgeInsets.only(bottom: 12),
       padding   : const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color      : kSurface,
+        color      : AppColors.surface,
         borderRadius: BorderRadius.circular(16),
         boxShadow  : const [
           BoxShadow(color: Color(0x0A000000), blurRadius: 12, offset: Offset(0, 3)),
@@ -252,13 +242,13 @@ class _DownloadedBookCard extends StatelessWidget {
             child: Container(
               width : 52,
               height: 72,
-              color : kEmeraldSoft,
+              color : AppColors.emeraldSoft,
               child : coverUrl != null && coverUrl.toString().isNotEmpty
                   ? Image.network(coverUrl.toString(),
                   fit         : BoxFit.cover,
                   errorBuilder: (_, __, ___) =>
-                  const Icon(Icons.menu_book_rounded, color: kEmerald))
-                  : const Icon(Icons.menu_book_rounded, color: kEmerald, size: 24),
+                  const Icon(Icons.menu_book_rounded, color: AppColors.emerald))
+                  : const Icon(Icons.menu_book_rounded, color: AppColors.emerald, size: 24),
             ),
           ),
           const SizedBox(width: 12),
@@ -272,26 +262,26 @@ class _DownloadedBookCard extends StatelessWidget {
                     style: const TextStyle(
                         fontSize  : 14,
                         fontWeight: FontWeight.w700,
-                        color     : kTextPrimary),
+                        color     : AppColors.textPrimary),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis),
                 const SizedBox(height: 3),
                 Text(author,
                     style: const TextStyle(
-                        fontSize: 12, color: kTextSecondary),
+                        fontSize: 12, color: AppColors.textSecondary),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis),
                 const SizedBox(height: 6),
                 Row(
                   children: [
                     const Icon(Icons.download_done_rounded,
-                        size: 13, color: kEmerald),
+                        size: 13, color: AppColors.emerald),
                     const SizedBox(width: 4),
                     Text(pages > 0 ? '$pages pages • Available offline'
                         : 'Available offline',
                         style: const TextStyle(
                             fontSize  : 11,
-                            color     : kEmerald,
+                            color     : AppColors.emerald,
                             fontWeight: FontWeight.w600)),
                   ],
                 ),
@@ -308,7 +298,7 @@ class _DownloadedBookCard extends StatelessWidget {
                   padding   : const EdgeInsets.symmetric(
                       horizontal: 12, vertical: 7),
                   decoration: BoxDecoration(
-                    color       : kEmerald,
+                    color       : AppColors.emerald,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Text('Read',
@@ -330,7 +320,7 @@ class _DownloadedBookCard extends StatelessWidget {
                   ),
                   child: const Text('Delete',
                       style: TextStyle(
-                          color     : kRed,
+                          color     : AppColors.red,
                           fontSize  : 12,
                           fontWeight: FontWeight.w700)),
                 ),

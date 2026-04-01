@@ -3,12 +3,11 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
+import '../config/env_config.dart';
 import '../models/store.dart';
 import 'store_books_screen.dart';
 import 'bookstore_cart_screen.dart';
 import '../services/cart_service.dart';
-
-const String _base = 'http://10.56.119.103:8000'; // change for physical device
 
 class BookstoreHomeScreen extends StatefulWidget {
   const BookstoreHomeScreen({super.key});
@@ -37,7 +36,7 @@ class _BookstoreHomeScreenState extends State<BookstoreHomeScreen> {
       _userPosition = await _getUserLocation();
 
       // 2. Fetch stores
-      final res = await http.get(Uri.parse('$_base/api/stores/'));
+      final res = await http.get(Uri.parse('${EnvConfig.bookstoreBaseUrl}/api/stores/'));
       if (res.statusCode == 200) {
         final List data = jsonDecode(res.body);
         final stores = data.map((j) => BookStore.fromJson(j)).toList();

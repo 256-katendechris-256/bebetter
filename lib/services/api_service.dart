@@ -1,3 +1,4 @@
+import 'package:bbeta/config/env_config.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -5,10 +6,7 @@ class ApiService {
   static final ApiService _instance = ApiService._internal();
   factory ApiService() => _instance;
 
-  // Change this to your backend URL (Vercel prod or local dev)
-  // For physical device on same WiFi: use your PC's IP address
-  // Find it with: ipconfig → look for IPv4 Address (192.168.x.x or 10.x.x.x)
-  static const String baseUrl = 'https://bud-ruby.vercel.app/api';  // ⬅️ Deployed backend
+  static String get baseUrl => EnvConfig.apiBaseUrl;
 
   late final Dio dio;
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
@@ -19,30 +17,31 @@ class ApiService {
   ApiService._internal() {
     dio = Dio(BaseOptions(
       baseUrl: baseUrl,
-      connectTimeout: const Duration(seconds: 30),  // Increased from 15 for physical device
-      receiveTimeout: const Duration(seconds: 30),
+      connectTimeout: EnvConfig.connectTimeout,
+      receiveTimeout: EnvConfig.receiveTimeout,
       headers: {'Content-Type': 'application/json'},
     ));
 
-    // Add logging interceptor
-    dio.interceptors.add(InterceptorsWrapper(
-      onRequest: (options, handler) {
-        print('📤 [API] ${options.method.toUpperCase()} ${options.path}');
-        print('📤 [API] Data: ${options.data}');
-        return handler.next(options);
-      },
-      onResponse: (response, handler) {
-        print('📥 [API] Response ${response.statusCode}: ${response.requestOptions.path}');
-        print('📥 [API] Data: ${response.data}');
-        return handler.next(response);
-      },
-      onError: (error, handler) {
-        print('❌ [API] Error: ${error.message}');
-        print('❌ [API] Status: ${error.response?.statusCode}');
-        print('❌ [API] Response: ${error.response?.data}');
-        return handler.next(error);
-      },
-    ));
+    if (EnvConfig.enableLogging) {
+      dio.interceptors.add(InterceptorsWrapper(
+        onRequest: (options, handler) {
+          print('📤 [API] ${options.method.toUpperCase()} ${options.path}');
+          print('📤 [API] Data: ${options.data}');
+          return handler.next(options);
+        },
+        onResponse: (response, handler) {
+          print('📥 [API] Response ${response.statusCode}: ${response.requestOptions.path}');
+          print('📥 [API] Data: ${response.data}');
+          return handler.next(response);
+        },
+        onError: (error, handler) {
+          print('❌ [API] Error: ${error.message}');
+          print('❌ [API] Status: ${error.response?.statusCode}');
+          print('❌ [API] Response: ${error.response?.data}');
+          return handler.next(error);
+        },
+      ));
+    }
 
     dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) async {
@@ -255,5 +254,19 @@ class ApiService {
 
   Future<Response> deleteAllNotifications() async {
     return await dio.delete('/notifications/delete-all/');
+  }
+
+  // ─── Gamification / Leaderboard ───
+
+  Future<Response> getLeaderboard({int limit = 20}) async {
+    return await dio.get('/gamification/leaderboard/', queryParameters: {'limit': limit});
+  }
+
+  Future<Response> getMyRank() async {
+    return await dio.get('/gamification/my-rank/');
+  }
+
+  Future<Response> getMyBadges() async {
+    return await dio.get('/gamification/badges/');
   }
 }

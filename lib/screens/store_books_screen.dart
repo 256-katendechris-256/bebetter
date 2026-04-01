@@ -2,12 +2,11 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import '../config/env_config.dart';
 import '../models/store.dart';
 import '../models/bookstore_book.dart';
 import '../services/cart_service.dart';
 import 'bookstore_cart_screen.dart';
-
-const String _base = 'http://10.56.119.103:8000';
 
 class StoreBooksScreen extends StatefulWidget {
   final BookStore store;
@@ -40,7 +39,7 @@ class _StoreBooksScreenState extends State<StoreBooksScreen> {
     setState(() { _loading = true; _error = null; });
     try {
       final res = await http.get(
-        Uri.parse('$_base/api/books/'),
+        Uri.parse('${EnvConfig.bookstoreBaseUrl}/api/books/'),
         headers: {'X-Tenant-Slug': widget.store.slug},
       );
       if (res.statusCode == 200) {

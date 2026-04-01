@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:bbeta/services/pdf_reader_service.dart';
 import 'package:bbeta/services/api_service.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:pdfx/pdfx.dart';
 
 const Color kTealDark = Color(0xFF0B4D40);
@@ -69,6 +70,22 @@ class _BookReaderScreenState extends State<BookReaderScreen> {
   Future<PdfDocument> _loadPDF() async {
     try {
       print('📖 [Reader] Starting PDF load for book ID: ${widget.bookId}');
+      
+      // Check connectivity first
+      final connectivity = await Connectivity().checkConnectivity();
+      final isOffline = connectivity.isEmpty || 
+          connectivity.every((r) => r == ConnectivityResult.none);
+      
+      // If offline, check if we have a cached version
+      if (isOffline) {
+        final cachedFile = await _pdfService.getCachedPDF(widget.bookId);
+        if (cachedFile == null) {
+          throw Exception('You\'re offline and this book hasn\'t been downloaded yet. '
+              'Please connect to the internet or download books for offline reading.');
+        }
+        print('📖 [Reader] Offline mode - using cached PDF');
+      }
+      
       final pdfFile = await _pdfService.downloadAndCachePDF(
         widget.bookId,
         widget.bookTitle,
@@ -79,13 +96,11 @@ class _BookReaderScreenState extends State<BookReaderScreen> {
       if (mounted) {
         setState(() {
           _totalPages = document.pagesCount;
-          // Initialize controller with document Future for pdfx 2.9.2 API
           _pdfController = PdfController(document: Future.value(document));
           print('✅ [Reader] PDF loaded successfully - Total pages: $_totalPages');
           print('✅ [Reader] Starting from page: $_currentPage');
         });
         
-        // Jump to initial page if needed (delayed to allow PdfView to render)
         if (_pageJumpPending && widget.initialPage > 1) {
           Future.delayed(const Duration(milliseconds: 300), () {
             if (mounted && _pdfController != null) {

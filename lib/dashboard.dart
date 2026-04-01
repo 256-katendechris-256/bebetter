@@ -1,6 +1,13 @@
+import 'dart:async';
 import 'package:bbeta/Auth/auth_service.dart';
+import 'package:bbeta/models/reading_stats.dart';
 import 'package:bbeta/screens/bookstore_home_screen.dart';
+import 'package:bbeta/screens/league_screen.dart';
+import 'package:bbeta/screens/my_list_screen.dart';
+import 'package:bbeta/screens/quest_screen.dart';
 import 'package:bbeta/services/api_service.dart';
+import 'package:bbeta/services/cache_service.dart';
+import 'package:bbeta/services/download_service.dart';
 import 'package:bbeta/splash_screen.dart';
 import 'package:bbeta/screens/book_reader_screen.dart';
 import 'package:bbeta/screens/notifications_screen.dart';
@@ -8,6 +15,7 @@ import 'package:bbeta/screens/notification_preferences_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:dio/dio.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import '../widgets/quote_carousel.dart';
 
 // ─── Design Tokens ────────────────────────────────────────────────────────────
@@ -66,9 +74,11 @@ class _DashboardState extends State<Dashboard> {
 
   final _api         = ApiService();
   final _authService = AuthService();
+  final _cache       = CacheService();
 
   Map<String, dynamic>? _profile;
   Map<String, dynamic>? _stats;
+  ReadingStats? _readingStats;
   List<dynamic> _currentlyReading = [];
   List<dynamic> _books             = [];
   List<dynamic> _filteredBooks     = [];
@@ -79,15 +89,73 @@ class _DashboardState extends State<Dashboard> {
   bool _loadingLibrary = true;
   Set<int> _bookmarkedBooks = {};
   int _unreadCount = 0;
+  
+  bool _isOffline = false;
+  String _lastSyncText = '';
+  late StreamSubscription<List<ConnectivityResult>> _connectivitySub;
 
   @override
   void initState() {
     super.initState();
+    _initConnectivity();
+    _loadCachedData();
     _loadHomeData();
     _loadLibraryData();
     _loadUnreadCount();
     Stream.periodic(const Duration(seconds: 60))
         .listen((_) { if (mounted) _loadUnreadCount(); });
+  }
+  
+  @override
+  void dispose() {
+    _connectivitySub.cancel();
+    super.dispose();
+  }
+  
+  Future<void> _initConnectivity() async {
+    _connectivitySub = Connectivity().onConnectivityChanged.listen((results) {
+      final offline = results.isEmpty || 
+          results.every((r) => r == ConnectivityResult.none);
+      if (mounted && _isOffline != offline) {
+        setState(() => _isOffline = offline);
+        if (!offline) {
+          _loadHomeData();
+          _loadLibraryData();
+        }
+      }
+    });
+    
+    final results = await Connectivity().checkConnectivity();
+    if (mounted) {
+      setState(() {
+        _isOffline = results.isEmpty || 
+            results.every((r) => r == ConnectivityResult.none);
+      });
+    }
+  }
+  
+  Future<void> _loadCachedData() async {
+    final cachedProfile = await _cache.getCachedProfile();
+    final cachedStats = await _cache.getCachedStats();
+    final cachedReading = await _cache.getCachedCurrentlyReading();
+    final cachedBooks = await _cache.getCachedBooks();
+    final lastSync = await _cache.getLastSyncText();
+    
+    if (mounted) {
+      setState(() {
+        if (cachedProfile != null) _profile = cachedProfile;
+        if (cachedStats != null) {
+          _stats = cachedStats;
+          _readingStats = ReadingStats.fromJson(cachedStats);
+        }
+        if (cachedReading != null) _currentlyReading = cachedReading;
+        if (cachedBooks != null) {
+          _books = cachedBooks;
+          _filteredBooks = cachedBooks;
+        }
+        _lastSyncText = lastSync;
+      });
+    }
   }
 
   Future<void> _loadUnreadCount() async {
@@ -108,14 +176,38 @@ class _DashboardState extends State<Dashboard> {
         _api.getCurrentlyReading(),
       ]);
       if (!mounted) return;
+      
+      final profile = results[0] as Map<String, dynamic>?;
+      final statsResponse = results[1] as Response;
+      final readingResponse = results[2] as Response;
+      
       setState(() {
-        _profile = results[0] as Map<String, dynamic>?;
-        final sR = results[1] as Response;
-        if (sR.statusCode == 200) _stats = sR.data;
-        final rR = results[2] as Response;
-        if (rR.statusCode == 200) _currentlyReading = rR.data as List? ?? [];
+        _profile = profile;
+        if (statsResponse.statusCode == 200) {
+          _stats = statsResponse.data;
+          _readingStats = ReadingStats.fromJson(statsResponse.data as Map<String, dynamic>);
+        }
+        if (readingResponse.statusCode == 200) {
+          _currentlyReading = readingResponse.data as List? ?? [];
+        }
       });
-    } catch (_) {}
+      
+      // Cache data for offline use
+      if (profile != null) await _cache.cacheProfile(profile);
+      if (statsResponse.statusCode == 200) {
+        await _cache.cacheStats(statsResponse.data as Map<String, dynamic>);
+      }
+      if (readingResponse.statusCode == 200) {
+        await _cache.cacheCurrentlyReading(_currentlyReading);
+      }
+      
+      final lastSync = await _cache.getLastSyncText();
+      if (mounted) setState(() => _lastSyncText = lastSync);
+      
+    } catch (e) {
+      // If online request fails, we already have cached data loaded
+      debugPrint('Load home data error: $e');
+    }
     if (mounted) setState(() => _loadingHome = false);
   }
 
@@ -132,8 +224,13 @@ class _DashboardState extends State<Dashboard> {
           books = res.data as List;
         }
         if (mounted) setState(() { _books = books; _filteredBooks = books; });
+        
+        // Cache books for offline use
+        await _cache.cacheBooks(books);
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Load library data error: $e');
+    }
     if (mounted) setState(() => _loadingLibrary = false);
   }
 
@@ -209,12 +306,33 @@ class _DashboardState extends State<Dashboard> {
                 .then((_) => _loadUnreadCount()),
             onSearchTap      : () {},
           ),
+          if (_isOffline)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              color: kGold.withOpacity(0.9),
+              child: Row(
+                children: [
+                  const Icon(Icons.wifi_off, color: Colors.white, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'You\'re offline. Showing cached data ($_lastSyncText)',
+                      style: const TextStyle(color: Colors.white, fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           Expanded(
             child: IndexedStack(
               index: _currentIndex,
               children: [
                 _buildHome(),
-                _buildLeague(),
+                LeagueScreen(
+                  stats: _readingStats,
+                  onRefresh: _loadHomeData,
+                ),
                 _buildLibrary(),
                 _buildChat(),
               ],
@@ -241,14 +359,30 @@ class _DashboardState extends State<Dashboard> {
         child  : Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const QuoteCarousel(),
+            const
+            QuoteCarousel(),
             const SizedBox(height: 24),
             //const _QuickIcons(),
             _QuickIconsRow(
-              onBookstoreTap: () => Navigator.push(
+              onQuestTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const QuestScreen()),
+              ),
+              onMyListTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                    builder: (_) => const BookstoreHomeScreen()),
+                  builder: (_) => MyListScreen(
+                    savedBooks: _myList,
+                    currentlyReading: _currentlyReading,
+                    finishedBooks: _readBooks,
+                    onToggleBookmark: _toggleBookmark,
+                    onMarkAsRead: _markAsRead,
+                  ),
+                ),
+              ).then((_) => setState(() {})),
+              onBookstoreTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const BookstoreHomeScreen()),
               ).then((_) => setState(() {})),
             ),
             const SizedBox(height: 28),
@@ -478,8 +612,15 @@ class _DashboardState extends State<Dashboard> {
 }
 
 class _QuickIconsRow extends StatelessWidget {
+  final VoidCallback onQuestTap;
+  final VoidCallback onMyListTap;
   final VoidCallback onBookstoreTap;
-  const _QuickIconsRow({required this.onBookstoreTap});
+  
+  const _QuickIconsRow({
+    required this.onQuestTap,
+    required this.onMyListTap,
+    required this.onBookstoreTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -487,9 +628,9 @@ class _QuickIconsRow extends StatelessWidget {
       padding: const EdgeInsets.only(top: 10),
       child: Row(
         children: [
-          Expanded(child: _QITile(item: const _QI(emoji: '🎯', label: 'Quest',     dot: false), onTap: () {})),
+          Expanded(child: _QITile(item: const _QI(emoji: '🎯', label: 'Quest', dot: false), onTap: onQuestTap)),
           const SizedBox(width: 8),
-          Expanded(child: _QITile(item: const _QI(emoji: '📚', label: 'My list',  dot: false), onTap: () {})),
+          Expanded(child: _QITile(item: const _QI(emoji: '📚', label: 'My list', dot: false), onTap: onMyListTap)),
           const SizedBox(width: 8),
           Expanded(child: _QITile(item: const _QI(emoji: '🛒', label: 'BookStore', dot: false), onTap: onBookstoreTap)),
         ],
@@ -1457,14 +1598,35 @@ class _ReadingCard extends StatelessWidget {
 // LIBRARY BOOK CARD
 // ═════════════════════════════════════════════════════════════════════════════
 
-class _LibraryBookCard extends StatelessWidget {
+class _LibraryBookCard extends StatefulWidget {
   final Map<String, dynamic> book;
   final bool isBookmarked;
   final VoidCallback onBookmarkTap;
   const _LibraryBookCard({required this.book, this.isBookmarked = false, required this.onBookmarkTap});
 
+  @override
+  State<_LibraryBookCard> createState() => _LibraryBookCardState();
+}
+
+class _LibraryBookCardState extends State<_LibraryBookCard> {
+  bool _isDownloaded = false;
+  
+  @override
+  void initState() {
+    super.initState();
+    _checkDownloaded();
+  }
+  
+  Future<void> _checkDownloaded() async {
+    final bookId = widget.book['id'];
+    if (bookId != null) {
+      final downloaded = await DownloadService.instance.fileExists(bookId);
+      if (mounted) setState(() => _isDownloaded = downloaded);
+    }
+  }
+
   void _open(BuildContext context) {
-    if (book['file'] == null || book['file'].toString().isEmpty) {
+    if (widget.book['file'] == null || widget.book['file'].toString().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content        : const Text('PDF not available yet'),
@@ -1478,16 +1640,17 @@ class _LibraryBookCard extends StatelessWidget {
     }
     Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => BookReaderScreen(
-        bookId    : book['id'],
-        bookTitle : book['title']    ?? 'Book',
-        authors   : book['author'],
-        coverImage: book['cover_url'],
+        bookId    : widget.book['id'],
+        bookTitle : widget.book['title']    ?? 'Book',
+        authors   : widget.book['author'],
+        coverImage: widget.book['cover_url'],
       ),
     ));
   }
 
   @override
   Widget build(BuildContext context) {
+    final book = widget.book;
     final title    = book['title']       ?? 'Untitled';
     final author   = book['author']      ?? '';
     final coverUrl = book['cover_url'];
@@ -1531,6 +1694,16 @@ class _LibraryBookCard extends StatelessWidget {
                       child: const Icon(Icons.picture_as_pdf, color: Colors.white, size: 12),
                     ),
                   ),
+                if (_isDownloaded)
+                  Positioned(
+                    top: -4, right: -4,
+                    child : Container(
+                      padding   : const EdgeInsets.all(3),
+                      decoration: BoxDecoration(
+                          color: kGold, borderRadius: BorderRadius.circular(6)),
+                      child: const Icon(Icons.offline_pin, color: Colors.white, size: 12),
+                    ),
+                  ),
               ],
             ),
             const SizedBox(width: 12),
@@ -1557,14 +1730,14 @@ class _LibraryBookCard extends StatelessWidget {
               ),
             ),
             GestureDetector(
-              onTap: onBookmarkTap,
+              onTap: widget.onBookmarkTap,
               child: Padding(
                 padding: const EdgeInsets.only(left: 8),
                 child  : Icon(
-                  isBookmarked
+                  widget.isBookmarked
                       ? Icons.bookmark_rounded
                       : Icons.bookmark_outline_rounded,
-                  color: isBookmarked ? kEmerald : kTextMuted,
+                  color: widget.isBookmarked ? kEmerald : kTextMuted,
                   size : 20,
                 ),
               ),
@@ -1574,7 +1747,7 @@ class _LibraryBookCard extends StatelessWidget {
                 color: hasPDF ? kEmerald : kTextMuted, size: 20),
             GestureDetector(
               onTap: (){
-                if (!isBookmarked) return;
+                if (!widget.isBookmarked) return;
                 (context.findAncestorStateOfType<_DashboardState>())
                 ?._markAsRead(book);
               },
@@ -1624,79 +1797,4 @@ class _EmptyState extends StatelessWidget {
     ),
   );
 
-}
-class MyListScreen extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final state = context.findAncestorStateOfType<_DashboardState>();
-
-    final myList = state?._myList ?? [];
-    final readBooks = state?._readBooks ?? [];
-    final currentlyReading = state?._currentlyReading ?? [];
-
-    return Scaffold(
-      backgroundColor: kBg,
-      appBar: AppBar(
-        backgroundColor: kInk,
-        title: const Text('My List'),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-
-            // 📌 Saved
-            const Text('Saved for Later',
-                style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 10),
-            if (myList.isEmpty)
-              const _EmptyState(
-                icon: Icons.bookmark_outline,
-                title: 'No saved books',
-                sub: 'Save books to read later.',
-              )
-            else
-              ...myList.map((b) => _LibraryBookCard(
-                book: b,
-                isBookmarked: true,
-                onBookmarkTap: () => state?._toggleBookmark(b),
-              )),
-
-            const SizedBox(height: 20),
-
-            // 📖 Currently Reading
-            const Text('Currently Reading',
-                style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 10),
-            if (currentlyReading.isEmpty)
-              const _EmptyState(
-                icon: Icons.menu_book,
-                title: 'No books in progress',
-                sub: '',
-              ),
-
-            const SizedBox(height: 20),
-
-            // ✅ Read
-            const Text('Finished',
-                style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 10),
-            if (readBooks.isEmpty)
-              const _EmptyState(
-                icon: Icons.check_circle_outline,
-                title: 'No books finished',
-                sub: '',
-              )
-            else
-              ...readBooks.map((b) => _LibraryBookCard(
-                book: b,
-                isBookmarked: false,
-                onBookmarkTap: () {},
-              )),
-          ],
-        ),
-      ),
-    );
-  }
 }

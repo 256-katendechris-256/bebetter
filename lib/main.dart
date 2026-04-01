@@ -1,8 +1,11 @@
 import 'package:bbeta/Auth/auth_service.dart';
+import 'package:bbeta/Auth/login.dart';
+import 'package:bbeta/Auth/signup.dart';
 import 'package:bbeta/dashboard.dart';
 import 'package:bbeta/screens/notifications_screen.dart';
 import 'package:bbeta/services/notification_service.dart';
 import 'package:bbeta/splash_screen.dart';
+import 'package:bbeta/welcome_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
@@ -33,7 +36,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      navigatorKey: navigatorKey,   // ← required for cold-start navigation
+      navigatorKey: navigatorKey,
       title: 'Be Better Book Club',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF0B4D40)),
@@ -41,6 +44,13 @@ class MyApp extends StatelessWidget {
       ),
       debugShowCheckedModeBanner: false,
       home: const AuthGate(),
+      routes: {
+        '/login': (context) => const Login(),
+        '/signup': (context) => const SignUp(),
+        '/dashboard': (context) => const Dashboard(),
+        '/welcome': (context) => const WelcomeScreen(),
+        '/notifications': (context) => const NotificationsScreen(),
+      },
     );
   }
 }
